@@ -8,3 +8,16 @@
 - Note: the official chain SwapRouter at 0xcaf681a66d020601342297493863e78c959e5cb2 reverts
   on exactInputSingle for this pool (empty revert, cause undiagnosed); the setup swap went through
   SwapHelper directly against the pool. TODO(router): revisit if more swaps are needed.
+
+## Standing sweep order (owner directive 2026-10-30)
+
+After testing and demo videos are complete (no earlier than submission, Nov 2):
+1. Claim any unclaimed winnings from both wallets.
+2. Swap all remaining WIF to ETH through the pool (use SwapHelper, same path as setup).
+3. Send the full ETH balance to 0x61810117d55a7ec1256D0FaE20f19858452564e5.
+4. Record the sweep tx hash here.
+
+Key records (never lose money rule): deployer key in macOS keychain
+item wifpool-deployer-key and .env DEPLOYER_KEY; player2 key in keychain item
+wifpool-player2-key and .env PLAYER2_KEY. Any future wallet gets the same
+treatment: keychain item + .env entry + address recorded here BEFORE funding.
