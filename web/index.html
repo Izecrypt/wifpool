@@ -51,6 +51,12 @@
   <div class="sub">daily $WIF up or down pool on Robinhood Chain. winners split the whole pot, 4% rolls into tomorrow.</div>
 
   <div class="card">
+    <div class="row" id="poolTabs" style="margin-bottom:14px">
+      <button class="ghost" data-pool="0">1h</button>
+      <button class="ghost" data-pool="1">4h</button>
+      <button class="ghost" data-pool="2">6h</button>
+      <button class="ghost" data-pool="3">24h</button>
+    </div>
     <div class="row">
       <div class="stat"><div class="k">round</div><div class="v" id="rId">—</div></div>
       <div class="stat"><div class="k">ends in</div><div class="v" id="rEnds">—</div></div>
@@ -98,19 +104,21 @@ const CHAIN = { chainId: 4663, name: "Robinhood Chain",
   rpc: "https://robinhoodchain.com" };
 
 const ABI = [
-  "function currentRoundId() view returns (uint256)",
-  "function rounds(uint256) view returns (tuple(uint64 startTime,uint64 endTime,uint128 openPrice,uint128 closePrice,uint256 potUp,uint256 potDown,uint256 jackpot,bool resolved,uint8 winningSide))",
+  "function currentRound(uint8) view returns (uint256)",
+  "function rounds(uint256) view returns (tuple(uint8 poolId,uint64 startTime,uint64 endTime,uint128 openPrice,uint128 closePrice,uint256 potUp,uint256 potDown,uint256 jackpot,bool resolved,uint8 winningSide))",
+  "function rolloverOf(uint8) view returns (uint256)",
   "function sideOf(uint256,address) view returns (uint8)",
   "function stakes(uint256,uint8,address) view returns (uint256)",
   "function previewClaim(uint256,address) view returns (uint256)",
-  "function commit(uint8 side, uint256 amount)",
+  "function commit(uint8 poolId, uint8 side, uint256 amount)",
   "function claim(uint256 roundId)",
-  "event RoundResolved(uint256 indexed id, uint128 openPrice, uint128 closePrice, uint8 winningSide, uint256 potUp, uint256 potDown, uint256 rolloverOut, string priceSource)",
+  "event RoundResolved(uint256 indexed id, uint8 indexed poolId, uint128 openPrice, uint128 closePrice, uint8 winningSide, uint256 potUp, uint256 potDown, uint256 rolloverOut, string priceSource)",
 ];
 
 const fmt = (n) => (Number(n) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 });
 const price = (n) => "$" + (Number(n) / 1e8).toFixed(6);
-let provider, pool, signer, selected = 1;
+let provider, pool, signer, selected = 1, poolId = 3;
+const POOLS = ["1h", "4h", "6h", "24h"];
 
 const $ = (id) => document.getElementById(id);
 
@@ -133,9 +141,12 @@ async function connect() {
 
 async function refresh() {
   const read = new ethers.Contract(POOL, ABI, new ethers.JsonRpcProvider(CHAIN.rpc));
-  const id = await read.currentRoundId();
+  const id = await read.currentRound(poolId);
   const r = await read.rounds(id);
-  $("rId").textContent = "#" + id;
+  document.querySelectorAll("#poolTabs button").forEach(b => {
+    b.style.borderColor = Number(b.dataset.pool) === poolId ? "var(--blue)" : "var(--edge)";
+  });
+  $("rId").textContent = "#" + id + " (" + POOLS[poolId] + ")";
   const left = Number(r.endTime) - Math.floor(Date.now() / 1000);
   $("rEnds").textContent = left > 0 ? Math.floor(left / 3600) + "h " + Math.floor((left % 3600) / 60) + "m" : "resolving";
   $("rPot").textContent = fmt(r.potUp + r.potDown) + " WIF";
@@ -196,7 +207,7 @@ async function commit() {
   if (await wif.allowance(await signer.getAddress(), POOL) < amt) {
     const a = await wif.approve(POOL, ethers.MaxUint256); await a.wait();
   }
-  const tx = await pool.commit(selected, amt);
+  const tx = await pool.commit(poolId, selected, amt);
   $("status").textContent = "commit submitted, waiting for confirmation…";
   await tx.wait();
   $("status").textContent = "committed. good luck.";
@@ -204,6 +215,9 @@ async function commit() {
 }
 
 $("pickUp").onclick = () => { selected = 1; $("status").textContent = "picked UP"; };
+document.querySelectorAll("#poolTabs button").forEach(b => {
+  b.onclick = async () => { poolId = Number(b.dataset.pool); await refresh(); };
+});
 $("pickDown").onclick = () => { selected = 2; $("status").textContent = "picked DOWN"; };
 $("commitBtn").onclick = () => commit().catch(e => $("status").textContent = e.reason || e.message);
 $("connectBtn").onclick = () => connect().catch(e => $("status").textContent = e.message);
