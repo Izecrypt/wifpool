@@ -510,7 +510,7 @@ document.querySelectorAll(".quick button[data-mult]").forEach(b => {
 $("maxBtn").onclick = () => { if (signer) $("amount").value = (Number(wifBal) / 1e18).toFixed(0); else toast("connect first"); };
 
 /* ---- price chart ---- */
-const CG_ID = "world-is-flat-wif";
+const CG_ID = "world-is-flat";
 let chartPrices = null, chartFetchedAt = 0;
 
 async function loadPrices() {

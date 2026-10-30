@@ -10,7 +10,7 @@ const { ethers } = require("ethers");
 const RPC = process.env.RHCHAIN_RPC;
 const KEY = process.env.KEEPER_KEY || process.env.DEPLOYER_KEY;
 const POOL = process.env.POOL_ADDRESS;
-const COINGECKO_ID = process.env.COINGECKO_ID || "world-is-flat-wif";
+const COINGECKO_ID = process.env.COINGECKO_ID || "world-is-flat";
 const POOL_COUNT = 4;
 
 const ABI = [
