@@ -130,7 +130,7 @@ async function connect() {
   if (Number(net.chainId) !== CHAIN.chainId) {
     await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
       chainId: "0x" + CHAIN.chainId.toString(16), chainName: CHAIN.name,
-      rpcUrls: [CHAIN.rpc], nativeCurrency: { name: "HOOD", symbol: "HOOD", decimals: 18 },
+      rpcUrls: [CHAIN.rpc], nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     }]});
   }
   signer = await provider.getSigner();
