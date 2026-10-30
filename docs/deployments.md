@@ -1,0 +1,10 @@
+# wifpool deployments (Robinhood Chain mainnet, chain id 4663)
+
+- WifDailyPool: 0xaF0499536a6F39baedB377dB72258EE0C751956a
+  (deployed 2026-10-30 ~17:45 UTC, deploy tx via scripts/deploy.js; four pools started in constructor)
+- SwapHelper (one-shot setup tool, not part of the product): 0x33a0D37Df20673Ce270628721Fd298142E93095C
+- $WIF token: 0x5173b8eA6923c2d40267890D45C46a3480954773 (verified symbol/decimals at deploy)
+- Swap pool used: Uni v3 fee 10000 at 0x156064f872Eb6DedC953E7AF21E7A7991910Ef09
+- Note: the official chain SwapRouter at 0xcaf681a66d020601342297493863e78c959e5cb2 reverts
+  on exactInputSingle for this pool (empty revert, cause undiagnosed); the setup swap went through
+  SwapHelper directly against the pool. TODO(router): revisit if more swaps are needed.
