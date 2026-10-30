@@ -1,0 +1,14 @@
+{
+  "name": "wifpool",
+  "version": "1.0.0",
+  "description": "Daily $WIF up/down prediction pool on Robinhood Chain (world is flat hackathon)",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}
