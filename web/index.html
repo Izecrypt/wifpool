@@ -167,6 +167,17 @@
   .dim { color: var(--gray2); }
   footer { margin-top: 34px; color: var(--gray2); font-size: .78rem; font-family: var(--mono); text-align: center; line-height: 1.8; }
   footer a { color: var(--gray); }
+  /* chart */
+  .chart-card { padding: 20px 24px 14px; }
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .chart-head .px-now { font-family: var(--mono); font-size: 1.25rem; font-weight: 700; }
+  .chart-head .px-now.up { color: var(--green); }
+  .chart-head .px-now.down { color: var(--orange); }
+  .chart-head .src { font-size: .72rem; color: var(--gray2); font-family: var(--mono); }
+  #chart { width: 100%; height: 160px; display: block; }
+  .chart-legend { display: flex; gap: 18px; margin-top: 8px; font-size: .74rem; color: var(--gray); font-family: var(--mono); flex-wrap: wrap; }
+  .chart-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -228,6 +239,19 @@
       <button class="go" id="commitBtn">commit WIF</button>
     </div>
     <div class="mystake" id="myStake"></div>
+  </div>
+
+  <div class="card chart-card hidden" id="chartCard">
+    <div class="chart-head">
+      <span class="px-now" id="pxNow">—</span>
+      <span class="src">$WIF / USD · coingecko · updates ~5m</span>
+    </div>
+    <svg id="chart" preserveAspectRatio="none" role="img" aria-label="$WIF price chart"></svg>
+    <div class="chart-legend">
+      <span><i style="background:var(--blue)"></i>price</span>
+      <span><i style="background:var(--gray2)"></i>round reference (approx)</span>
+      <span id="legendEntry" class="hidden"><i style="background:var(--green)"></i>your entry</span>
+    </div>
   </div>
 
   <div class="grid2">
@@ -382,6 +406,9 @@ async function refresh() {
     $("myStake").textContent = "";
   }
   await renderHistory(read, snap);
+
+  const mySideNow = signer ? Number(await read.sideOf(cur.rid, me)) : 0;
+  updateChart(cur.start, mySideNow);
 }
 
 async function renderClaims(read, snap) {
@@ -481,6 +508,75 @@ document.querySelectorAll(".quick button[data-mult]").forEach(b => {
   b.onclick = () => { $("amount").value = b.dataset.mult; };
 });
 $("maxBtn").onclick = () => { if (signer) $("amount").value = (Number(wifBal) / 1e18).toFixed(0); else toast("connect first"); };
+
+/* ---- price chart ---- */
+const CG_ID = "world-is-flat-wif";
+let chartPrices = null, chartFetchedAt = 0;
+
+async function loadPrices() {
+  if (chartPrices && Date.now() - chartFetchedAt < 5 * 60 * 1000) return chartPrices;
+  const r = await fetch(`https://api.coingecko.com/api/v3/coins/${CG_ID}/market_chart?vs_currency=usd&days=2`);
+  if (!r.ok) throw new Error("price feed unavailable");
+  const j = await r.json();
+  chartPrices = j.prices || [];
+  chartFetchedAt = Date.now();
+  return chartPrices;
+}
+
+function drawChart(prices, refPx, curPx) {
+  const svg = $("chart");
+  const W = 900, H = 160, PAD = 8;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  if (prices.length < 2) return;
+  const vals = prices.map(p => p[1]);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (refPx) { lo = Math.min(lo, refPx); hi = Math.max(hi, refPx); }
+  const span = (hi - lo) || 1e-9;
+  lo -= span * 0.08; hi += span * 0.08;
+  const X = (i) => PAD + (i / (prices.length - 1)) * (W - 2 * PAD);
+  const Y = (v) => H - PAD - ((v - lo) / (hi - lo)) * (H - 2 * PAD);
+  const line = prices.map((p, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
+  const upColor = refPx && curPx >= refPx ? "var(--green)" : "var(--orange)";
+
+  let inner = "";
+  if (refPx) {
+    const ry = Y(refPx).toFixed(1);
+    inner += `<line x1="${PAD}" y1="${ry}" x2="${W - PAD}" y2="${ry}" stroke="var(--gray2)" stroke-width="1" stroke-dasharray="5 4" opacity="0.7"/>`;
+  }
+  inner += `<path d="${line}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  if (curPx) {
+    const lx = X(prices.length - 1), ly = Y(curPx);
+    inner += `<circle cx="${lx}" cy="${ly}" r="4" fill="${upColor}"/>`;
+    inner += `<circle cx="${lx}" cy="${ly}" r="8" fill="${upColor}" opacity="0.25"/>`;
+  }
+  if (refPx) inner += `<text x="${W - PAD}" y="${(Y(refPx) - 5).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--gray)" font-family="ui-monospace,Menlo,monospace">ref $${refPx.toFixed(4)}</text>`;
+  svg.innerHTML = inner;
+}
+
+async function updateChart(roundStartSec, mySide) {
+  try {
+    const prices = await loadPrices();
+    if (prices.length < 2) return;
+    const cur = prices[prices.length - 1][1];
+    // round reference: first datapoint at or after round start (labeled approx on purpose)
+    let ref = null;
+    if (roundStartSec) {
+      const after = prices.filter(p => p[0] / 1000 >= roundStartSec);
+      ref = after.length ? after[0][1] : prices[0][1];
+    }
+    drawChart(prices, ref, cur);
+    const now = $("pxNow");
+    now.textContent = "$" + cur.toFixed(4);
+    if (ref) {
+      now.className = "px-now " + (cur >= ref ? "up" : "down");
+      now.textContent += " " + (cur >= ref ? "▲" : "▼");
+      $("legendEntry").classList.toggle("hidden", !mySide);
+    }
+    $("chartCard").classList.remove("hidden");
+  } catch (e) {
+    $("chartCard").classList.add("hidden");
+  }
+}
 
 setInterval(() => {
   const left = roundEnd - Date.now() / 1000;
