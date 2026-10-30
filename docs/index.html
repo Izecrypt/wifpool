@@ -3,226 +3,487 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>wifpool — daily $WIF pool</title>
+<title>wifpool — predict the $WIF price, split the pot</title>
+<meta name="description" content="Daily and hourly up/down pools on the World is Flat token. Winners split the whole pot, 4% rolls into the next round.">
 <style>
-  :root { --bg:#0d1117; --card:#161b22; --edge:#30363d; --blue:#1f6feb;
-          --text:#e6edf3; --gray:#8b949e; --green:#3fb950; --orange:#f7811f; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family:-apple-system,Helvetica,Arial,sans-serif;
-         background:var(--bg); color:var(--text); }
-  main { max-width:720px; margin:0 auto; padding:24px 16px 64px; }
-  h1 { font-size:1.6rem; margin:8px 0 2px; }
-  h1 span { color:var(--blue); }
-  .sub { color:var(--gray); font-size:.95rem; margin-bottom:20px; }
-  .card { background:var(--card); border:1px solid var(--edge); border-radius:10px;
-          padding:18px; margin-bottom:16px; }
-  .row { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-  .stat { flex:1; min-width:130px; }
-  .stat .k { color:var(--gray); font-size:.8rem; text-transform:uppercase; }
-  .stat .v { font-size:1.25rem; font-weight:600; font-family:Menlo,monospace; }
-  .side { flex:1; padding:16px; border-radius:8px; border:1px solid var(--edge);
-          cursor:pointer; text-align:center; font-size:1.1rem; font-weight:600;
-          background:transparent; color:var(--text); font-family:inherit; }
-  .side.up:hover { border-color:var(--green); }
-  .side.down:hover { border-color:var(--orange); }
-  .up .arrow { color:var(--green); } .down .arrow { color:var(--orange); }
-  input, button.go { width:100%; padding:12px; border-radius:8px;
-          border:1px solid var(--edge); background:var(--bg); color:var(--text);
-          font-size:1rem; margin-top:10px; font-family:Menlo,monospace; }
-  button.go { background:var(--blue); border-color:var(--blue); cursor:pointer;
-          font-family:inherit; font-weight:600; }
-  button.ghost { background:transparent; border:1px solid var(--edge); color:var(--text);
-          padding:10px 14px; border-radius:8px; cursor:pointer; }
-  .note { color:var(--gray); font-size:.85rem; margin-top:10px; line-height:1.5; }
-  table { width:100%; border-collapse:collapse; font-size:.85rem; }
-  td, th { padding:8px 6px; border-bottom:1px solid var(--edge); text-align:left; }
-  th { color:var(--gray); font-weight:500; }
-  .pill { padding:2px 8px; border-radius:99px; font-size:.75rem; }
-  .pill.up { background:rgba(63,185,80,.15); color:var(--green); }
-  .pill.down { background:rgba(247,129,31,.15); color:var(--orange); }
-  .addr { font-family:Menlo,monospace; font-size:.8rem; color:var(--gray);
-          word-break:break-all; }
-  #status { min-height:1.4em; font-size:.9rem; color:var(--gray); margin-top:8px; }
+  :root {
+    --bg: #0a0e14;
+    --bg2: #0d1117;
+    --card: rgba(22, 27, 34, 0.85);
+    --card-solid: #161b22;
+    --edge: #2b333d;
+    --edge-soft: rgba(48, 54, 61, 0.6);
+    --blue: #1f6feb;
+    --blue-soft: rgba(31, 111, 235, 0.12);
+    --green: #3fb950;
+    --green-soft: rgba(63, 185, 80, 0.12);
+    --orange: #f7811f;
+    --orange-soft: rgba(247, 129, 31, 0.12);
+    --text: #e6edf3;
+    --gray: #8b949e;
+    --gray2: #6e7681;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(31,111,235,0.10), transparent 60%),
+      radial-gradient(900px 500px at 10% 110%, rgba(247,129,31,0.06), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px 18px 80px; }
+
+  /* top bar */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 14px 0 26px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .mark {
+    width: 40px; height: 40px; border-radius: 11px;
+    background: linear-gradient(145deg, #131a23, #0c1118);
+    border: 1px solid var(--edge);
+    display: grid; place-items: center; font-size: 19px;
+  }
+  .brand h1 { font-size: 1.35rem; letter-spacing: -0.02em; font-weight: 700; }
+  .brand h1 span { color: var(--blue); }
+  .brand .tag { color: var(--gray); font-size: .82rem; margin-top: 1px; }
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; box-shadow: 0 0 8px rgba(63,185,80,.7); animation: pulse 2.2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+  button.connect {
+    background: var(--blue); color: #fff; border: none; padding: 11px 18px;
+    border-radius: 10px; font-weight: 600; font-size: .92rem; cursor: pointer;
+    font-family: var(--sans); transition: transform .08s ease, background .15s ease;
+  }
+  button.connect:hover { background: #2b7bf0; }
+  button.connect:active { transform: scale(.97); }
+  button.connect.secondary { background: transparent; border: 1px solid var(--edge); color: var(--text); }
+  .acct { font-family: var(--mono); font-size: .78rem; color: var(--gray); }
+
+  /* pool tabs */
+  .pools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px; }
+  .pool-tab {
+    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 14px;
+    padding: 14px 14px 12px; cursor: pointer; text-align: left; color: var(--text);
+    font-family: var(--sans); transition: border-color .15s ease, transform .08s ease;
+    position: relative; overflow: hidden;
+  }
+  .pool-tab:hover { transform: translateY(-1px); }
+  .pool-tab.active { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue), 0 8px 24px rgba(31,111,235,.12); }
+  .pool-tab .pt-name { font-family: var(--mono); font-size: .78rem; color: var(--gray); text-transform: uppercase; letter-spacing: .08em; }
+  .pool-tab .pt-pot { font-size: 1.28rem; font-weight: 700; font-family: var(--mono); margin-top: 4px; }
+  .pool-tab .pt-time { font-size: .78rem; color: var(--gray2); margin-top: 3px; font-family: var(--mono); }
+  .pool-tab .pt-bar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--blue); transition: width 1s linear; }
+
+  /* main card */
+  .card {
+    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 18px;
+    padding: 24px; margin-bottom: 18px; backdrop-filter: blur(6px);
+  }
+  .round-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .round-head .r { font-family: var(--mono); color: var(--gray); font-size: .85rem; }
+  .countdown { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; letter-spacing: .02em; }
+  .countdown small { font-size: .8rem; color: var(--gray2); font-weight: 400; margin-left: 8px; }
+
+  /* pot split bar */
+  .split { display: flex; height: 64px; border-radius: 14px; overflow: hidden; border: 1px solid var(--edge); margin-bottom: 14px; }
+  .split .side { display: flex; flex-direction: column; justify-content: center; padding: 0 16px; min-width: 90px; transition: width .5s ease; cursor: pointer; }
+  .split .up { background: linear-gradient(135deg, rgba(63,185,80,.22), rgba(63,185,80,.08)); }
+  .split .down { background: linear-gradient(225deg, rgba(247,129,31,.22), rgba(247,129,31,.08)); margin-left: auto; text-align: right; align-items: flex-end; }
+  .split .side .lab { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--gray); font-family: var(--mono); }
+  .split .up .lab { color: var(--green); }
+  .split .down .lab { color: var(--orange); }
+  .split .side .amt { font-family: var(--mono); font-weight: 700; font-size: 1.05rem; margin-top: 2px; }
+  .jackpot-line { text-align: center; color: var(--gray); font-size: .85rem; font-family: var(--mono); margin-bottom: 20px; }
+  .jackpot-line b { color: var(--blue); }
+
+  /* commit form */
+  .commit-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .amount-wrap { flex: 1; min-width: 180px; position: relative; }
+  input.amount {
+    width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--edge);
+    background: var(--bg2); color: var(--text); font-family: var(--mono); font-size: 1rem;
+    outline: none; transition: border-color .15s ease;
+  }
+  input.amount:focus { border-color: var(--blue); }
+  input.amount::placeholder { color: var(--gray2); }
+  .quick { display: flex; gap: 6px; margin-top: 8px; }
+  .quick button {
+    background: transparent; border: 1px solid var(--edge); color: var(--gray);
+    font-size: .72rem; padding: 4px 10px; border-radius: 99px; cursor: pointer; font-family: var(--mono);
+  }
+  .quick button:hover { color: var(--text); border-color: var(--gray2); }
+  button.go {
+    background: var(--blue); color: #fff; border: none; padding: 14px 26px; border-radius: 12px;
+    font-weight: 700; font-size: 1rem; cursor: pointer; font-family: var(--sans);
+    transition: transform .08s ease, background .15s ease; min-width: 150px;
+  }
+  button.go:hover { background: #2b7bf0; }
+  button.go:active { transform: scale(.97); }
+  button.go:disabled { background: var(--edge); color: var(--gray2); cursor: not-allowed; }
+  .side-pick { display: flex; gap: 10px; margin-bottom: 14px; }
+  .side-pick button {
+    flex: 1; padding: 16px; border-radius: 12px; border: 1px solid var(--edge);
+    background: transparent; color: var(--text); font-size: 1.05rem; font-weight: 700;
+    cursor: pointer; font-family: var(--sans); transition: all .12s ease; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .side-pick button .arr { font-size: 1.15rem; }
+  .side-pick button.up:hover, .side-pick button.up.sel { border-color: var(--green); background: var(--green-soft); color: var(--green); }
+  .side-pick button.down:hover, .side-pick button.down.sel { border-color: var(--orange); background: var(--orange-soft); color: var(--orange); }
+  .mystake { margin-top: 14px; font-size: .88rem; color: var(--gray); font-family: var(--mono); }
+  .mystake b { color: var(--text); }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--card-solid); border: 1px solid var(--edge); color: var(--text);
+    padding: 12px 20px; border-radius: 12px; font-size: .9rem; opacity: 0; pointer-events: none;
+    transition: all .25s ease; max-width: 90vw; z-index: 50; font-family: var(--mono);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* claims + history */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .pools { grid-template-columns: repeat(2, 1fr); } }
+  .card h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--gray); font-weight: 600; margin-bottom: 14px; font-family: var(--mono); }
+  .claim-btn {
+    width: 100%; margin-top: 8px; padding: 12px; border-radius: 10px; border: none;
+    background: var(--green); color: #08130a; font-weight: 700; cursor: pointer; font-family: var(--sans);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  th { text-align: left; color: var(--gray2); font-weight: 500; font-family: var(--mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; padding: 8px 8px; border-bottom: 1px solid var(--edge); }
+  td { padding: 10px 8px; border-bottom: 1px solid rgba(43,51,61,.5); font-family: var(--mono); }
+  .pill { padding: 3px 10px; border-radius: 99px; font-size: .72rem; font-weight: 700; }
+  .pill.up { background: var(--green-soft); color: var(--green); }
+  .pill.down { background: var(--orange-soft); color: var(--orange); }
+  .dim { color: var(--gray2); }
+  footer { margin-top: 34px; color: var(--gray2); font-size: .78rem; font-family: var(--mono); text-align: center; line-height: 1.8; }
+  footer a { color: var(--gray); }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
-<main>
-  <h1>wif<span>pool</span></h1>
-  <div class="sub">daily $WIF up or down pool on Robinhood Chain. winners split the whole pot, 4% rolls into tomorrow.</div>
+<div class="wrap">
 
-  <div class="card">
-    <div class="row" id="poolTabs" style="margin-bottom:14px">
-      <button class="ghost" data-pool="0">1h</button>
-      <button class="ghost" data-pool="1">4h</button>
-      <button class="ghost" data-pool="2">6h</button>
-      <button class="ghost" data-pool="3">24h</button>
+  <header>
+    <div class="brand">
+      <div class="mark">🐕</div>
+      <div>
+        <h1>wif<span>pool</span></h1>
+        <div class="tag"><span class="live-dot"></span>$WIF prediction pools on Robinhood Chain</div>
+      </div>
     </div>
-    <div class="row">
-      <div class="stat"><div class="k">round</div><div class="v" id="rId">—</div></div>
-      <div class="stat"><div class="k">ends in</div><div class="v" id="rEnds">—</div></div>
-      <div class="stat"><div class="k">total pot</div><div class="v" id="rPot">—</div></div>
-      <div class="stat"><div class="k">jackpot</div><div class="v" id="rJack">—</div></div>
+    <div>
+      <button class="connect" id="connectBtn">connect wallet</button>
+      <div class="acct" id="acct"></div>
+    </div>
+  </header>
+
+  <div class="pools" id="poolTabs"></div>
+
+  <div class="card">
+    <div class="round-head">
+      <span class="r" id="rMeta">round —</span>
+      <span class="countdown" id="rCount">—<small>left to commit</small></span>
+    </div>
+
+    <div class="split">
+      <div class="side up" id="splitUp" style="width:50%">
+        <span class="lab">▲ up</span>
+        <span class="amt" id="potUp">—</span>
+      </div>
+      <div class="side down" id="splitDown" style="width:50%">
+        <span class="lab">▼ down</span>
+        <span class="amt" id="potDown">—</span>
+      </div>
+    </div>
+    <div class="jackpot-line">next round seeded with <b id="rJack">—</b> from this round's rollover</div>
+
+    <div class="side-pick">
+      <button class="up" id="pickUp"><span class="arr">▲</span> price goes up</button>
+      <button class="down" id="pickDown"><span class="arr">▼</span> price goes down</button>
+    </div>
+
+    <div class="commit-row">
+      <div class="amount-wrap">
+        <input class="amount" id="amount" placeholder="amount in WIF (min 1,000)" inputmode="decimal" autocomplete="off">
+        <div class="quick">
+          <button data-mult="1000">1k</button>
+          <button data-mult="2500">2.5k</button>
+          <button data-mult="5000">5k</button>
+          <button id="maxBtn">max</button>
+        </div>
+      </div>
+      <button class="go" id="commitBtn">commit WIF</button>
+    </div>
+    <div class="mystake" id="myStake"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>your winnings</h2>
+      <div id="claimArea" class="dim">connect a wallet to see unclaimed rounds</div>
+    </div>
+    <div class="card">
+      <h2>recent rounds</h2>
+      <table>
+        <thead><tr><th>round</th><th>open</th><th>close</th><th>winner</th><th>pot</th></tr></thead>
+        <tbody id="history"><tr><td colspan="5" class="dim">loading…</td></tr></tbody>
+      </table>
     </div>
   </div>
 
-  <div class="card">
-    <div class="row">
-      <button class="side up" id="pickUp"><span class="arrow">▲</span> UP <span id="potUp"></span></button>
-      <button class="side down" id="pickDown"><span class="arrow">▼</span> DOWN <span id="potDown"></span></button>
-    </div>
-    <input id="amount" placeholder="amount in WIF (min 1,000)" inputmode="decimal">
-    <button class="go" id="commitBtn">commit WIF</button>
-    <div id="status"></div>
-    <div class="note" id="myStake"></div>
-  </div>
+  <footer>
+    winners split the whole pot, 4% rolls into the next round<br>
+    resolution prices from <a href="https://www.coingecko.com" target="_blank" rel="noopener">coingecko</a>, recorded onchain in every RoundResolved event<br>
+    contract <a id="explorer" href="#" target="_blank" rel="noopener">0xaF0499…956a</a> · <a href="https://github.com/Izecrypt/wifpool" target="_blank" rel="noopener">open source, MIT</a>
+  </footer>
+</div>
 
-  <div class="card">
-    <button class="ghost" id="connectBtn">connect wallet</button>
-    <span class="addr" id="acct"></span>
-    <div id="claimArea"></div>
-  </div>
-
-  <div class="card">
-    <div class="k" style="color:var(--gray);font-size:.8rem;text-transform:uppercase;margin-bottom:8px;">past rounds</div>
-    <table><thead><tr><th>#</th><th>open</th><th>close</th><th>winner</th><th>pot</th><th></th></tr></thead>
-    <tbody id="history"></tbody></table>
-  </div>
-
-  <div class="note">
-    resolution prices come from Coingecko and are recorded onchain in the
-    RoundResolved event. 4% of every pot rolls into the next round.
-    contract: <span class="addr" id="poolAddr"></span>
-  </div>
-</main>
+<div id="toast"></div>
 
 <script type="module">
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.min.js";
 
 const POOL = "0xaF0499536a6F39baedB377dB72258EE0C751956a";
 const WIF  = "0x5173b8eA6923c2d40267890D45C46a3480954773";
-const CHAIN = { chainId: 4663, name: "Robinhood Chain",
-  rpc: "https://rpc.mainnet.chain.robinhood.com" };
+const EXPLORER = "https://robinhoodchain.blockscout.com";
+const CHAIN = { chainId: 4663, name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com" };
+const POOLS = [
+  { id: 0, name: "1h",  hint: "fast rounds" },
+  { id: 1, name: "4h",  hint: "the swing" },
+  { id: 2, name: "6h",  hint: "the session" },
+  { id: 3, name: "24h", hint: "the daily" },
+];
 
 const ABI = [
   "function currentRound(uint8) view returns (uint256)",
   "function rounds(uint256) view returns (tuple(uint8 poolId,uint64 startTime,uint64 endTime,uint128 openPrice,uint128 closePrice,uint256 potUp,uint256 potDown,uint256 jackpot,bool resolved,uint8 winningSide))",
-  "function rolloverOf(uint8) view returns (uint256)",
   "function sideOf(uint256,address) view returns (uint8)",
   "function stakes(uint256,uint8,address) view returns (uint256)",
   "function previewClaim(uint256,address) view returns (uint256)",
+  "function rolloverOf(uint8) view returns (uint256)",
   "function commit(uint8 poolId, uint8 side, uint256 amount)",
   "function claim(uint256 roundId)",
   "event RoundResolved(uint256 indexed id, uint8 indexed poolId, uint128 openPrice, uint128 closePrice, uint8 winningSide, uint256 potUp, uint256 potDown, uint256 rolloverOut, string priceSource)",
 ];
 
-const fmt = (n) => (Number(n) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 });
-const price = (n) => "$" + (Number(n) / 1e8).toFixed(6);
-let provider, pool, signer, selected = 1, poolId = 3;
-const POOLS = ["1h", "4h", "6h", "24h"];
-
+const fmt = (n) => {
+  const v = Number(n) / 1e18;
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + "M";
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + "k";
+  return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+};
+const px = (n) => n ? "$" + (Number(n) / 1e8).toFixed(4) : "—";
 const $ = (id) => document.getElementById(id);
 
+let signer, poolRw, poolId = 3, selected = 0, roundEnd = 0, me = null, wifBal = 0n;
+
+function toast(msg, ms = 3500) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove("show"), ms);
+}
+
 async function connect() {
-  if (!window.ethereum) { $("status").textContent = "no injected wallet found"; return; }
-  await window.ethereum.request({ method: "eth_requestAccounts" });
-  provider = new ethers.BrowserProvider(window.ethereum);
-  const net = await provider.getNetwork();
-  if (Number(net.chainId) !== CHAIN.chainId) {
-    await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
-      chainId: "0x" + CHAIN.chainId.toString(16), chainName: CHAIN.name,
-      rpcUrls: [CHAIN.rpc], nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    }]});
+  if (!window.ethereum) { toast("no wallet found. install metamask or use a robinhood chain wallet."); return; }
+  try {
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const net = await provider.getNetwork();
+    if (Number(net.chainId) !== CHAIN.chainId) {
+      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
+        chainId: "0x" + CHAIN.chainId.toString(16), chainName: CHAIN.name,
+        rpcUrls: [CHAIN.rpc], nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+      }]});
+    }
+    signer = await provider.getSigner();
+    me = await signer.getAddress();
+    poolRw = new ethers.Contract(POOL, ABI, signer);
+    $("connectBtn").textContent = "connected";
+    $("connectBtn").classList.add("secondary");
+    $("acct").textContent = me.slice(0, 6) + "…" + me.slice(-4);
+    const wif = new ethers.Contract(WIF, ["function balanceOf(address) view returns (uint256)"], provider);
+    wifBal = await wif.balanceOf(me);
+    await refresh();
+  } catch (e) { toast(e.message?.slice(0, 90) || "connect failed"); }
+}
+
+function renderTabs(snap) {
+  const tabs = $("poolTabs");
+  tabs.innerHTML = "";
+  for (const p of POOLS) {
+    const s = snap[p.id];
+    const b = document.createElement("button");
+    b.className = "pool-tab" + (p.id === poolId ? " active" : "");
+    const left = Math.max(0, s.end - Date.now() / 1000);
+    b.innerHTML = `<div class="pt-name">${p.name}</div>
+      <div class="pt-pot">${fmt(s.potUp + s.potDown)} WIF</div>
+      <div class="pt-time">${s.resolved ? "resolving…" : fmtDur(left)}</div>
+      <div class="pt-bar" style="width:${s.resolved ? 0 : Math.min(100, 100 - left / (s.end - s.start) * 100)}%"></div>`;
+    b.onclick = async () => { poolId = p.id; selected = 0; await refresh(); };
+    tabs.appendChild(b);
   }
-  signer = await provider.getSigner();
-  pool = new ethers.Contract(POOL, ABI, signer);
-  $("acct").textContent = await signer.getAddress();
-  await refresh();
+}
+
+function fmtDur(s) {
+  if (s <= 0) return "closing…";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m ${Math.floor(s % 60)}s`;
 }
 
 async function refresh() {
   const read = new ethers.Contract(POOL, ABI, new ethers.JsonRpcProvider(CHAIN.rpc));
-  const id = await read.currentRound(poolId);
-  const r = await read.rounds(id);
-  document.querySelectorAll("#poolTabs button").forEach(b => {
-    b.style.borderColor = Number(b.dataset.pool) === poolId ? "var(--blue)" : "var(--edge)";
-  });
-  $("rId").textContent = "#" + id + " (" + POOLS[poolId] + ")";
-  const left = Number(r.endTime) - Math.floor(Date.now() / 1000);
-  $("rEnds").textContent = left > 0 ? Math.floor(left / 3600) + "h " + Math.floor((left % 3600) / 60) + "m" : "resolving";
-  $("rPot").textContent = fmt(r.potUp + r.potDown) + " WIF";
-  $("rJack").textContent = fmt(r.jackpot) + " WIF";
-  $("potUp").textContent = fmt(r.potUp);
-  $("potDown").textContent = fmt(r.potDown);
+  const snap = {};
+  for (const p of POOLS) {
+    const rid = await read.currentRound(p.id);
+    const r = await read.rounds(rid);
+    snap[p.id] = { rid: rid, start: Number(r.startTime), end: Number(r.endTime),
+      potUp: r.potUp, potDown: r.potDown, resolved: r.resolved, winning: r.winningSide,
+      open: r.openPrice, close: r.closePrice };
+  }
+  renderTabs(snap);
+
+  const cur = snap[poolId];
+  roundEnd = cur.end;
+  $("rMeta").textContent = `round #${cur.rid} · ${POOLS[poolId].name} pool`;
+  const total = cur.potUp + cur.potDown;
+  const upPct = total === 0n ? 50 : Number(cur.potUp * 100n / total);
+  $("splitUp").style.width = Math.max(18, upPct) + "%";
+  $("splitDown").style.width = Math.max(18, 100 - upPct) + "%";
+  $("potUp").textContent = fmt(cur.potUp);
+  $("potDown").textContent = fmt(cur.potDown);
+  const roll = (total * 4n) / 100n;
+  $("rJack").textContent = fmt(roll) + " WIF";
+  $("pickUp").classList.toggle("sel", selected === 1);
+  $("pickDown").classList.toggle("sel", selected === 2);
 
   if (signer) {
-    const me = await signer.getAddress();
-    const s = await read.sideOf(id, me);
-    const st = await read.stakes(id, s || 1, me);
-    $("myStake").textContent = s > 0
-      ? `you are ${s === 1 ? "UP" : "DOWN"} with ${fmt(st)} WIF this round`
-      : "you have no stake this round yet";
-    await renderClaims(read, me, id);
+    const s = await read.sideOf(cur.rid, me);
+    const st = await read.stakes(cur.rid, s || 1, me);
+    $("myStake").innerHTML = s > 0
+      ? `you are <b>${s === 1 ? "UP ▲" : "DOWN ▼"}</b> with <b>${fmt(st)} WIF</b> this round · wallet: ${fmt(wifBal)} WIF`
+      : `no stake yet this round · wallet: ${fmt(wifBal)} WIF`;
+    await renderClaims(read, snap);
+  } else {
+    $("myStake").textContent = "";
   }
-  await renderHistory(read, id);
+  await renderHistory(read, snap);
 }
 
-async function renderClaims(read, me, currentId) {
-  const area = $("claimArea"); area.innerHTML = "";
-  for (let i = Math.max(1, currentId - 7); i < currentId; i++) {
-    const r = await read.rounds(i);
-    if (!r.resolved) continue;
-    const s = await read.sideOf(i, me);
-    if (s === 0 || s !== r.winningSide) continue;
-    const due = await read.previewClaim(i, me);
-    if (due === 0n) continue;
-    const b = document.createElement("button");
-    b.className = "go"; b.textContent = `claim ${fmt(due)} WIF from round ${i}`;
-    b.onclick = async () => { $("status").textContent = "claiming…";
-      const tx = await pool.claim(i); await tx.wait();
-      $("status").textContent = "claimed"; await refresh(); };
-    area.appendChild(b);
+async function renderClaims(read, snap) {
+  const area = $("claimArea");
+  area.innerHTML = "";
+  let any = false;
+  for (const p of POOLS) {
+    for (let back = 1; back <= 6; back++) {
+      const rid = snap[p.id].rid - BigInt(back);
+      if (rid < 1n) break;
+      const r = await read.rounds(rid);
+      if (!r.resolved) continue;
+      const s = await read.sideOf(rid, me);
+      if (s === 0n || s !== r.winningSide) continue;
+      const due = await read.previewClaim(rid, me);
+      if (due === 0n) continue;
+      any = true;
+      const b = document.createElement("button");
+      b.className = "claim-btn";
+      b.textContent = `claim ${fmt(due)} WIF · round #${rid} (${p.name})`;
+      b.onclick = async () => {
+        b.disabled = true; b.textContent = "claiming…";
+        try {
+          const tx = await poolRw.claim(rid);
+          await tx.wait();
+          toast(`claimed ${fmt(due)} WIF`);
+          await refresh();
+        } catch (e) { b.disabled = false; toast((e.reason || e.message || "claim failed").slice(0, 90)); }
+      };
+      area.appendChild(b);
+    }
   }
+  if (!any) area.innerHTML = '<span class="dim">no unclaimed winnings right now</span>';
 }
 
-async function renderHistory(read, currentId) {
-  const tb = $("history"); tb.innerHTML = "";
-  for (let i = currentId - 1; i >= 1 && i >= currentId - 9; i--) {
-    const r = await read.rounds(i);
+async function renderHistory(read, snap) {
+  const tb = $("history");
+  tb.innerHTML = "";
+  const rows = [];
+  for (const p of POOLS)
+    for (let back = 1; back <= 4; back++) {
+      const rid = snap[p.id].rid - BigInt(back);
+      if (rid >= 1n) rows.push({ rid, p });
+    }
+  rows.sort((a, b) => (a.rid > b.rid ? -1 : 1));
+  for (const { rid, p } of rows.slice(0, 8)) {
+    const r = await read.rounds(rid);
+    if (Number(r.poolId) !== p.id && !r.resolved) continue;
     const tr = document.createElement("tr");
-    const winner = r.resolved ? (r.winningSide === 1 ? "UP" : "DOWN") : "…";
-    tr.innerHTML = `<td>${i}</td><td>${r.openPrice ? price(r.openPrice) : "—"}</td>
-      <td>${r.closePrice ? price(r.closePrice) : "—"}</td>
-      <td><span class="pill ${winner.toLowerCase()}">${winner}</span></td>
-      <td>${fmt(r.potUp + r.potDown)}</td><td></td>`;
+    const w = r.resolved ? (r.winningSide === 1n ? "UP" : "DOWN") : "…";
+    tr.innerHTML = `<td>#${rid} <span class="dim">${p.name}</span></td>
+      <td>${px(r.openPrice)}</td><td>${px(r.closePrice)}</td>
+      <td>${r.resolved ? `<span class="pill ${w.toLowerCase()}">${w}</span>` : '<span class="dim">live</span>'}</td>
+      <td>${fmt(r.potUp + r.potDown)}</td>`;
     tb.appendChild(tr);
   }
+  if (!tb.children.length) tb.innerHTML = '<tr><td colspan="5" class="dim">no rounds yet</td></tr>';
 }
 
 async function commit() {
-  if (!signer) { await connect(); }
-  const amt = ethers.parseUnits($("amount").value || "0", 18);
-  $("status").textContent = "approve WIF spend, then confirm the commit…";
-  const wif = new ethers.Contract(WIF,
-    ["function approve(address,uint256)","function allowance(address,address) view returns (uint256)"], signer);
-  if (await wif.allowance(await signer.getAddress(), POOL) < amt) {
-    const a = await wif.approve(POOL, ethers.MaxUint256); await a.wait();
+  if (!signer) { await connect(); if (!signer) return; }
+  if (!selected) { toast("pick UP or DOWN first"); return; }
+  let amt;
+  try { amt = ethers.parseUnits($("amount").value || "0", 18); } catch { toast("invalid amount"); return; }
+  if (amt < 1000n * 10n ** 18n) { toast("minimum commit is 1,000 WIF"); return; }
+  const btn = $("commitBtn");
+  btn.disabled = true; btn.textContent = "working…";
+  try {
+    const wif = new ethers.Contract(WIF, ["function approve(address,uint256)", "function allowance(address,address) view returns (uint256)"], signer);
+    if (await wif.allowance(me, POOL) < amt) {
+      toast("approve WIF spend in your wallet…");
+      const a = await wif.approve(POOL, ethers.MaxUint256);
+      await a.wait();
+    }
+    btn.textContent = "confirm commit…";
+    const tx = await poolRw.commit(poolId, selected, amt);
+    toast("commit submitted, waiting…");
+    await tx.wait();
+    toast(`committed ${fmt(amt)} WIF ${selected === 1 ? "UP" : "DOWN"}`);
+    $("amount").value = "";
+    await refresh();
+  } catch (e) {
+    toast((e.reason || e.message || "commit failed").slice(0, 110));
+  } finally {
+    btn.disabled = false; btn.textContent = "commit WIF";
   }
-  const tx = await pool.commit(poolId, selected, amt);
-  $("status").textContent = "commit submitted, waiting for confirmation…";
-  await tx.wait();
-  $("status").textContent = "committed. good luck.";
-  await refresh();
 }
 
-$("pickUp").onclick = () => { selected = 1; $("status").textContent = "picked UP"; };
-document.querySelectorAll("#poolTabs button").forEach(b => {
-  b.onclick = async () => { poolId = Number(b.dataset.pool); await refresh(); };
+$("pickUp").onclick = () => { selected = selected === 1 ? 0 : 1; $("pickUp").classList.toggle("sel", selected === 1); $("pickDown").classList.remove("sel"); };
+$("pickDown").onclick = () => { selected = selected === 2 ? 0 : 2; $("pickDown").classList.toggle("sel", selected === 2); $("pickUp").classList.remove("sel"); };
+$("commitBtn").onclick = commit;
+$("connectBtn").onclick = connect;
+$("splitUp").onclick = () => $("pickUp").click();
+$("splitDown").onclick = () => $("pickDown").click();
+$("explorer").href = EXPLORER + "/address/" + POOL;
+document.querySelectorAll(".quick button[data-mult]").forEach(b => {
+  b.onclick = () => { $("amount").value = b.dataset.mult; };
 });
-$("pickDown").onclick = () => { selected = 2; $("status").textContent = "picked DOWN"; };
-$("commitBtn").onclick = () => commit().catch(e => $("status").textContent = e.reason || e.message);
-$("connectBtn").onclick = () => connect().catch(e => $("status").textContent = e.message);
-$("poolAddr").textContent = POOL;
-refresh().catch(() => {});
+$("maxBtn").onclick = () => { if (signer) $("amount").value = (Number(wifBal) / 1e18).toFixed(0); else toast("connect first"); };
+
+setInterval(() => {
+  const left = roundEnd - Date.now() / 1000;
+  $("rCount").innerHTML = `${fmtDur(left)}<small>left to commit</small>`;
+}, 1000);
+
+await refresh();
+setInterval(refresh, 45000);
 </script>
 </body>
 </html>
