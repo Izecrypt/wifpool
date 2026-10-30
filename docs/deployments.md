@@ -21,3 +21,8 @@ Key records (never lose money rule): deployer key in macOS keychain
 item wifpool-deployer-key and .env DEPLOYER_KEY; player2 key in keychain item
 wifpool-player2-key and .env PLAYER2_KEY. Any future wallet gets the same
 treatment: keychain item + .env entry + address recorded here BEFORE funding.
+- Round 5 (pool 0 round 2) resolved 2026-10-30 20:05 UTC: open 124737, close
+  125180, UP wins, no stakes. Known v1 edge found: a round with zero
+  winning stake leaves its seeded jackpot in the contract instead of
+  rolling forward (claim path reverts cleanly, no funds at risk).
+  TODO(v2): carry unclaimed jackpots into the next round of the same pool.
