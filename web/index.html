@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wifpool — daily $WIF pool</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --edge:#30363d; --blue:#1f6feb;
+          --text:#e6edf3; --gray:#8b949e; --green:#3fb950; --orange:#f7811f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--text); }
+  main { max-width:720px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.6rem; margin:8px 0 2px; }
+  h1 span { color:var(--blue); }
+  .sub { color:var(--gray); font-size:.95rem; margin-bottom:20px; }
+  .card { background:var(--card); border:1px solid var(--edge); border-radius:10px;
+          padding:18px; margin-bottom:16px; }
+  .row { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .stat { flex:1; min-width:130px; }
+  .stat .k { color:var(--gray); font-size:.8rem; text-transform:uppercase; }
+  .stat .v { font-size:1.25rem; font-weight:600; font-family:Menlo,monospace; }
+  .side { flex:1; padding:16px; border-radius:8px; border:1px solid var(--edge);
+          cursor:pointer; text-align:center; font-size:1.1rem; font-weight:600;
+          background:transparent; color:var(--text); font-family:inherit; }
+  .side.up:hover { border-color:var(--green); }
+  .side.down:hover { border-color:var(--orange); }
+  .up .arrow { color:var(--green); } .down .arrow { color:var(--orange); }
+  input, button.go { width:100%; padding:12px; border-radius:8px;
+          border:1px solid var(--edge); background:var(--bg); color:var(--text);
+          font-size:1rem; margin-top:10px; font-family:Menlo,monospace; }
+  button.go { background:var(--blue); border-color:var(--blue); cursor:pointer;
+          font-family:inherit; font-weight:600; }
+  button.ghost { background:transparent; border:1px solid var(--edge); color:var(--text);
+          padding:10px 14px; border-radius:8px; cursor:pointer; }
+  .note { color:var(--gray); font-size:.85rem; margin-top:10px; line-height:1.5; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  td, th { padding:8px 6px; border-bottom:1px solid var(--edge); text-align:left; }
+  th { color:var(--gray); font-weight:500; }
+  .pill { padding:2px 8px; border-radius:99px; font-size:.75rem; }
+  .pill.up { background:rgba(63,185,80,.15); color:var(--green); }
+  .pill.down { background:rgba(247,129,31,.15); color:var(--orange); }
+  .addr { font-family:Menlo,monospace; font-size:.8rem; color:var(--gray);
+          word-break:break-all; }
+  #status { min-height:1.4em; font-size:.9rem; color:var(--gray); margin-top:8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>wif<span>pool</span></h1>
+  <div class="sub">daily $WIF up or down pool on Robinhood Chain. winners split the whole pot, 4% rolls into tomorrow.</div>
+
+  <div class="card">
+    <div class="row">
+      <div class="stat"><div class="k">round</div><div class="v" id="rId">—</div></div>
+      <div class="stat"><div class="k">ends in</div><div class="v" id="rEnds">—</div></div>
+      <div class="stat"><div class="k">total pot</div><div class="v" id="rPot">—</div></div>
+      <div class="stat"><div class="k">jackpot</div><div class="v" id="rJack">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button class="side up" id="pickUp"><span class="arrow">▲</span> UP <span id="potUp"></span></button>
+      <button class="side down" id="pickDown"><span class="arrow">▼</span> DOWN <span id="potDown"></span></button>
+    </div>
+    <input id="amount" placeholder="amount in WIF (min 1,000)" inputmode="decimal">
+    <button class="go" id="commitBtn">commit WIF</button>
+    <div id="status"></div>
+    <div class="note" id="myStake"></div>
+  </div>
+
+  <div class="card">
+    <button class="ghost" id="connectBtn">connect wallet</button>
+    <span class="addr" id="acct"></span>
+    <div id="claimArea"></div>
+  </div>
+
+  <div class="card">
+    <div class="k" style="color:var(--gray);font-size:.8rem;text-transform:uppercase;margin-bottom:8px;">past rounds</div>
+    <table><thead><tr><th>#</th><th>open</th><th>close</th><th>winner</th><th>pot</th><th></th></tr></thead>
+    <tbody id="history"></tbody></table>
+  </div>
+
+  <div class="note">
+    resolution prices come from Coingecko and are recorded onchain in the
+    RoundResolved event. 4% of every pot rolls into the next round.
+    contract: <span class="addr" id="poolAddr"></span>
+  </div>
+</main>
+
+<script type="module">
+import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.min.js";
+
+const POOL = "0x0000000000000000000000000000000000000000"; // replaced at deploy: see docs/deployments.md
+const WIF  = "0x5173b8eA6923c2d40267890D45C46a3480954773";
+const CHAIN = { chainId: 4663, name: "Robinhood Chain",
+  rpc: "https://robinhoodchain.com" };
+
+const ABI = [
+  "function currentRoundId() view returns (uint256)",
+  "function rounds(uint256) view returns (tuple(uint64 startTime,uint64 endTime,uint128 openPrice,uint128 closePrice,uint256 potUp,uint256 potDown,uint256 jackpot,bool resolved,uint8 winningSide))",
+  "function sideOf(uint256,address) view returns (uint8)",
+  "function stakes(uint256,uint8,address) view returns (uint256)",
+  "function previewClaim(uint256,address) view returns (uint256)",
+  "function commit(uint8 side, uint256 amount)",
+  "function claim(uint256 roundId)",
+  "event RoundResolved(uint256 indexed id, uint128 openPrice, uint128 closePrice, uint8 winningSide, uint256 potUp, uint256 potDown, uint256 rolloverOut, string priceSource)",
+];
+
+const fmt = (n) => (Number(n) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 });
+const price = (n) => "$" + (Number(n) / 1e8).toFixed(6);
+let provider, pool, signer, selected = 1;
+
+const $ = (id) => document.getElementById(id);
+
+async function connect() {
+  if (!window.ethereum) { $("status").textContent = "no injected wallet found"; return; }
+  await window.ethereum.request({ method: "eth_requestAccounts" });
+  provider = new ethers.BrowserProvider(window.ethereum);
+  const net = await provider.getNetwork();
+  if (Number(net.chainId) !== CHAIN.chainId) {
+    await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
+      chainId: "0x" + CHAIN.chainId.toString(16), chainName: CHAIN.name,
+      rpcUrls: [CHAIN.rpc], nativeCurrency: { name: "HOOD", symbol: "HOOD", decimals: 18 },
+    }]});
+  }
+  signer = await provider.getSigner();
+  pool = new ethers.Contract(POOL, ABI, signer);
+  $("acct").textContent = await signer.getAddress();
+  await refresh();
+}
+
+async function refresh() {
+  const read = new ethers.Contract(POOL, ABI, new ethers.JsonRpcProvider(CHAIN.rpc));
+  const id = await read.currentRoundId();
+  const r = await read.rounds(id);
+  $("rId").textContent = "#" + id;
+  const left = Number(r.endTime) - Math.floor(Date.now() / 1000);
+  $("rEnds").textContent = left > 0 ? Math.floor(left / 3600) + "h " + Math.floor((left % 3600) / 60) + "m" : "resolving";
+  $("rPot").textContent = fmt(r.potUp + r.potDown) + " WIF";
+  $("rJack").textContent = fmt(r.jackpot) + " WIF";
+  $("potUp").textContent = fmt(r.potUp);
+  $("potDown").textContent = fmt(r.potDown);
+
+  if (signer) {
+    const me = await signer.getAddress();
+    const s = await read.sideOf(id, me);
+    const st = await read.stakes(id, s || 1, me);
+    $("myStake").textContent = s > 0
+      ? `you are ${s === 1 ? "UP" : "DOWN"} with ${fmt(st)} WIF this round`
+      : "you have no stake this round yet";
+    await renderClaims(read, me, id);
+  }
+  await renderHistory(read, id);
+}
+
+async function renderClaims(read, me, currentId) {
+  const area = $("claimArea"); area.innerHTML = "";
+  for (let i = Math.max(1, currentId - 7); i < currentId; i++) {
+    const r = await read.rounds(i);
+    if (!r.resolved) continue;
+    const s = await read.sideOf(i, me);
+    if (s === 0 || s !== r.winningSide) continue;
+    const due = await read.previewClaim(i, me);
+    if (due === 0n) continue;
+    const b = document.createElement("button");
+    b.className = "go"; b.textContent = `claim ${fmt(due)} WIF from round ${i}`;
+    b.onclick = async () => { $("status").textContent = "claiming…";
+      const tx = await pool.claim(i); await tx.wait();
+      $("status").textContent = "claimed"; await refresh(); };
+    area.appendChild(b);
+  }
+}
+
+async function renderHistory(read, currentId) {
+  const tb = $("history"); tb.innerHTML = "";
+  for (let i = currentId - 1; i >= 1 && i >= currentId - 9; i--) {
+    const r = await read.rounds(i);
+    const tr = document.createElement("tr");
+    const winner = r.resolved ? (r.winningSide === 1 ? "UP" : "DOWN") : "…";
+    tr.innerHTML = `<td>${i}</td><td>${r.openPrice ? price(r.openPrice) : "—"}</td>
+      <td>${r.closePrice ? price(r.closePrice) : "—"}</td>
+      <td><span class="pill ${winner.toLowerCase()}">${winner}</span></td>
+      <td>${fmt(r.potUp + r.potDown)}</td><td></td>`;
+    tb.appendChild(tr);
+  }
+}
+
+async function commit() {
+  if (!signer) { await connect(); }
+  const amt = ethers.parseUnits($("amount").value || "0", 18);
+  $("status").textContent = "approve WIF spend, then confirm the commit…";
+  const wif = new ethers.Contract(WIF,
+    ["function approve(address,uint256)","function allowance(address,address) view returns (uint256)"], signer);
+  if (await wif.allowance(await signer.getAddress(), POOL) < amt) {
+    const a = await wif.approve(POOL, ethers.MaxUint256); await a.wait();
+  }
+  const tx = await pool.commit(selected, amt);
+  $("status").textContent = "commit submitted, waiting for confirmation…";
+  await tx.wait();
+  $("status").textContent = "committed. good luck.";
+  await refresh();
+}
+
+$("pickUp").onclick = () => { selected = 1; $("status").textContent = "picked UP"; };
+$("pickDown").onclick = () => { selected = 2; $("status").textContent = "picked DOWN"; };
+$("commitBtn").onclick = () => commit().catch(e => $("status").textContent = e.reason || e.message);
+$("connectBtn").onclick = () => connect().catch(e => $("status").textContent = e.message);
+$("poolAddr").textContent = POOL;
+refresh().catch(() => {});
+</script>
+</body>
+</html>
