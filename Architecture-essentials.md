@@ -9,10 +9,10 @@ Quick reference for agents working in this repo. Full design in Architecture.md.
 2. The keeper can only call `resolve` once per round, after `endTime`, and
    only stores prices. All payout math happens at claim time from stored
    pots.
-3. There is exactly one unresolved round at any moment. `startRound` requires
-   the previous round to be resolved.
-4. The 4 percent fee goes only to `rollover`, which is only ever added to
-   the next round's pot. No admin fund extraction exists.
+3. Each pool has at most one unresolved round.
+   `startRound(poolId)` requires that pool's previous round to be resolved.
+4. The 4 percent fee goes only to `rolloverOf[poolId]`, only ever added to
+   the same pool's next round as its jackpot. No admin fund extraction exists.
 5. Rollover counts toward nobody's winnings; it is house-seeded pot, not
    player money.
 

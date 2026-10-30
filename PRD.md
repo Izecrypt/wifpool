@@ -6,8 +6,9 @@ categories: games, consumer and payments.
 
 ## What it is
 
-Every 24 hours a new round opens. Players commit $WIF predicting whether the
-$WIF price goes up or down by round end. When the round closes, the winning
+Four pools run in parallel: 1 hour,
+4 hour, 6 hour and 24 hour rounds. Every round, players commit $WIF
+predicting whether the $WIF price goes up or down by round end. When the round closes, the winning
 side splits the whole pot (losers included) pro-rata by stake. A fee of 4 percent of the pot
 rolls into the next round as a jackpot. That rollover is the flywheel: every round
 makes the next one bigger, and a rollover pot is a reason to come back daily.
@@ -43,7 +44,7 @@ makes the next one bigger, and a rollover pot is a reason to come back daily.
 
 ## Numbers (locked)
 
-- Round length: 24 hours, first round starts at deploy.
+- Pool lengths: 1 hour, 4 hours, 6 hours, 24 hours, all live at deploy.
 - Entry: minimum 1,000 $WIF per commit (18 decimals token), no maximum.
 - Fee: 4 percent of the total pot rolls to the next round. Winners take 96
   percent of the whole pot (losers' stake included) plus any jackpot, pro-rata

@@ -22,8 +22,9 @@ the $WIF ERC20. Rationale: judges include a security expert; the smallest
 possible surface is the feature.
 
 State:
-- `rounds[id]`: {openPrice, closePrice, resolved, potUp, potDown, rolloverIn,
-  startTime, endTime, totalFee}
+- `currentRound[poolId]`, `rolloverOf[poolId]`,
+  `rounds[id]`: {poolId, openPrice, closePrice, resolved, potUp, potDown, jackpot,
+  startTime, endTime}
 - `stakes[round][side][addr]`: amount committed per side.
 - `claimed[round][addr]`: bool.
 - `rollover`: balance reserved for the next round.
